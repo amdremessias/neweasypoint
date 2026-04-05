@@ -3,20 +3,25 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Employee time tracking SaaS API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: employees
+    description: Employee management
+  - name: attendance
+    description: Attendance / time punches
+  - name: reports
+    description: Summary and reporting endpoints
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +29,346 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /employees:
+    get:
+      operationId: listEmployees
+      tags: [employees]
+      summary: List all employees
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: department
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, inactive]
+      responses:
+        "200":
+          description: List of employees
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Employee"
+    post:
+      operationId: createEmployee
+      tags: [employees]
+      summary: Create a new employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEmployeeBody"
+      responses:
+        "201":
+          description: Employee created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+
+  /employees/{id}:
+    get:
+      operationId: getEmployee
+      tags: [employees]
+      summary: Get employee by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+        "404":
+          description: Not found
+    put:
+      operationId: updateEmployee
+      tags: [employees]
+      summary: Update an employee
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEmployeeBody"
+      responses:
+        "200":
+          description: Updated employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+    delete:
+      operationId: deleteEmployee
+      tags: [employees]
+      summary: Delete an employee
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /attendance:
+    get:
+      operationId: listAttendance
+      tags: [attendance]
+      summary: List attendance records
+      parameters:
+        - in: query
+          name: employeeId
+          schema:
+            type: integer
+        - in: query
+          name: dateFrom
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: dateTo
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [open, closed]
+      responses:
+        "200":
+          description: Attendance list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AttendanceRecord"
+    post:
+      operationId: createAttendance
+      tags: [attendance]
+      summary: Create attendance record (clock-in)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAttendanceBody"
+      responses:
+        "201":
+          description: Attendance created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceRecord"
+
+  /attendance/{id}:
+    get:
+      operationId: getAttendance
+      tags: [attendance]
+      summary: Get attendance record by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Attendance record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceRecord"
+    put:
+      operationId: updateAttendance
+      tags: [attendance]
+      summary: Update attendance record (clock-out, adjustments)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAttendanceBody"
+      responses:
+        "200":
+          description: Updated attendance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceRecord"
+    delete:
+      operationId: deleteAttendance
+      tags: [attendance]
+      summary: Delete attendance record
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /attendance/clockin:
+    post:
+      operationId: clockIn
+      tags: [attendance]
+      summary: Quick clock-in for an employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClockInBody"
+      responses:
+        "201":
+          description: Clocked in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceRecord"
+
+  /attendance/clockout:
+    post:
+      operationId: clockOut
+      tags: [attendance]
+      summary: Quick clock-out for an employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClockOutBody"
+      responses:
+        "200":
+          description: Clocked out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceRecord"
+
+  /reports/dashboard:
+    get:
+      operationId: getDashboardSummary
+      tags: [reports]
+      summary: Dashboard summary - today's attendance overview
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /reports/employee/{id}/hours:
+    get:
+      operationId: getEmployeeHoursReport
+      tags: [reports]
+      summary: Hours worked report for an employee
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: month
+          schema:
+            type: integer
+        - in: query
+          name: year
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Hours report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeHoursReport"
+
+  /reports/department-summary:
+    get:
+      operationId: getDepartmentSummary
+      tags: [reports]
+      summary: Attendance summary grouped by department
+      responses:
+        "200":
+          description: Department summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DepartmentSummary"
+
+  /reports/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [reports]
+      summary: Recent clock-in/out activity feed
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /reports/late-arrivals:
+    get:
+      operationId: getLateArrivals
+      tags: [reports]
+      summary: Employees who arrived late today
+      responses:
+        "200":
+          description: Late arrivals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LateArrivalItem"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +379,347 @@ components:
       required:
         - status
 
+    Employee:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        department:
+          type: string
+        position:
+          type: string
+        expectedCheckin:
+          type: string
+          description: Expected check-in time HH:MM
+        expectedCheckout:
+          type: string
+          description: Expected check-out time HH:MM
+        status:
+          type: string
+          enum: [active, inactive]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - email
+        - department
+        - position
+        - expectedCheckin
+        - expectedCheckout
+        - status
+        - createdAt
+
+    CreateEmployeeBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        department:
+          type: string
+        position:
+          type: string
+        expectedCheckin:
+          type: string
+        expectedCheckout:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+          default: active
+      required:
+        - name
+        - email
+        - department
+        - position
+        - expectedCheckin
+        - expectedCheckout
+
+    UpdateEmployeeBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        department:
+          type: string
+        position:
+          type: string
+        expectedCheckin:
+          type: string
+        expectedCheckout:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+
+    AttendanceRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: integer
+        employeeName:
+          type: string
+        employeeDepartment:
+          type: string
+        date:
+          type: string
+          format: date
+        clockIn:
+          type: string
+          format: date-time
+        clockOut:
+          type: string
+          format: date-time
+          nullable: true
+        totalMinutes:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [open, closed]
+        notes:
+          type: string
+          nullable: true
+        lateMinutes:
+          type: integer
+          nullable: true
+          description: Minutes late compared to expected checkin
+        overtimeMinutes:
+          type: integer
+          nullable: true
+      required:
+        - id
+        - employeeId
+        - employeeName
+        - employeeDepartment
+        - date
+        - clockIn
+        - status
+
+    CreateAttendanceBody:
+      type: object
+      properties:
+        employeeId:
+          type: integer
+        clockIn:
+          type: string
+          format: date-time
+        clockOut:
+          type: string
+          format: date-time
+        notes:
+          type: string
+      required:
+        - employeeId
+        - clockIn
+
+    UpdateAttendanceBody:
+      type: object
+      properties:
+        clockIn:
+          type: string
+          format: date-time
+        clockOut:
+          type: string
+          format: date-time
+        notes:
+          type: string
+
+    ClockInBody:
+      type: object
+      properties:
+        employeeId:
+          type: integer
+      required:
+        - employeeId
+
+    ClockOutBody:
+      type: object
+      properties:
+        employeeId:
+          type: integer
+      required:
+        - employeeId
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalEmployees:
+          type: integer
+        presentToday:
+          type: integer
+        absentToday:
+          type: integer
+        lateToday:
+          type: integer
+        clockedOutToday:
+          type: integer
+        stillWorkingNow:
+          type: integer
+        averageHoursThisWeek:
+          type: number
+        attendanceRateThisMonth:
+          type: number
+      required:
+        - totalEmployees
+        - presentToday
+        - absentToday
+        - lateToday
+        - clockedOutToday
+        - stillWorkingNow
+        - averageHoursThisWeek
+        - attendanceRateThisMonth
+
+    EmployeeHoursReport:
+      type: object
+      properties:
+        employeeId:
+          type: integer
+        employeeName:
+          type: string
+        month:
+          type: integer
+        year:
+          type: integer
+        totalDays:
+          type: integer
+        presentDays:
+          type: integer
+        absentDays:
+          type: integer
+        lateDays:
+          type: integer
+        totalHours:
+          type: number
+        expectedHours:
+          type: number
+        overtimeHours:
+          type: number
+        dailyBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyHoursEntry"
+      required:
+        - employeeId
+        - employeeName
+        - month
+        - year
+        - totalDays
+        - presentDays
+        - absentDays
+        - lateDays
+        - totalHours
+        - expectedHours
+        - overtimeHours
+        - dailyBreakdown
+
+    DailyHoursEntry:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        clockIn:
+          type: string
+          nullable: true
+        clockOut:
+          type: string
+          nullable: true
+        hoursWorked:
+          type: number
+          nullable: true
+        status:
+          type: string
+          enum: [present, absent, holiday, weekend]
+        lateMinutes:
+          type: integer
+          nullable: true
+      required:
+        - date
+        - status
+
+    DepartmentSummary:
+      type: object
+      properties:
+        department:
+          type: string
+        totalEmployees:
+          type: integer
+        presentToday:
+          type: integer
+        absentToday:
+          type: integer
+        lateToday:
+          type: integer
+        attendanceRate:
+          type: number
+      required:
+        - department
+        - totalEmployees
+        - presentToday
+        - absentToday
+        - lateToday
+        - attendanceRate
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: integer
+        employeeName:
+          type: string
+        department:
+          type: string
+        type:
+          type: string
+          enum: [clock_in, clock_out]
+        timestamp:
+          type: string
+          format: date-time
+        lateMinutes:
+          type: integer
+          nullable: true
+      required:
+        - id
+        - employeeId
+        - employeeName
+        - department
+        - type
+        - timestamp
+
+    LateArrivalItem:
+      type: object
+      properties:
+        employeeId:
+          type: integer
+        employeeName:
+          type: string
+        department:
+          type: string
+        expectedCheckin:
+          type: string
+        actualCheckin:
+          type: string
+          format: date-time
+        lateMinutes:
+          type: integer
+      required:
+        - employeeId
+        - employeeName
+        - department
+        - expectedCheckin
+        - actualCheckin
+        - lateMinutes
