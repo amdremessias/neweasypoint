@@ -75,13 +75,7 @@ PORT=3000
 NODE_ENV=development
 ```
 
-### 3. Aplique o schema do banco de dados
-
-```bash
-pnpm --filter @workspace/db run push
-```
-
-### 4. Rode o projeto em modo desenvolvimento
+### 3. Rode o projeto em modo desenvolvimento
 
 Em terminais separados:
 

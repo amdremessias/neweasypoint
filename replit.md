@@ -53,8 +53,20 @@ All time comparisons use **BRT (UTC-3)**. The `getBRTMinutes()` helper converts 
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `pnpm --filter @workspace/db run generate` — generate a new migration file after schema changes
+- `pnpm --filter @workspace/db run push` — push DB schema changes directly (dev only, bypasses migrations)
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
+
+## Database Migrations
+
+Migrations are managed via Drizzle Kit. Migration SQL files live in `lib/db/migrations/`. The API server automatically runs all pending migrations on startup (via `migrateDb()` in `lib/db/src/index.ts`). No manual steps required.
+
+When you change the DB schema:
+1. Edit the schema files in `lib/db/src/schema/`
+2. Run `pnpm --filter @workspace/db run generate` to create a new migration file
+3. Restart the API server — it will apply the new migration automatically
+
+The build script (`artifacts/api-server/build.mjs`) copies `lib/db/migrations/` into `dist/migrations/` so they are available at runtime in both dev and production.
 
 ## Auth System
 

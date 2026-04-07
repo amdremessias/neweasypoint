@@ -25,5 +25,5 @@ EXPOSE 3000
 # Runtime environment
 ENV STATIC_FILES_PATH=/app/artifacts/ponto-app/dist/public
 
-# Run DB migrations then start the server
-CMD sh -c "pnpm --filter @workspace/db run push && node ./artifacts/api-server/dist/index.mjs"
+# Migrations run automatically on startup via migrateDb()
+CMD ["node", "./artifacts/api-server/dist/index.mjs"]
