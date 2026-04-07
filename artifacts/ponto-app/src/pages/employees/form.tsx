@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, ShieldCheck } from "lucide-react";
 
 const schema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
@@ -35,6 +36,12 @@ export default function EmployeeFormPage() {
 
   const id = matchEdit && paramsEdit?.id ? Number(paramsEdit.id) : null;
   const isEdit = id !== null;
+
+  const [createAccess, setCreateAccess] = useState(false);
+  const [accessPassword, setAccessPassword] = useState("");
+  const [accessRole, setAccessRole] = useState<"admin" | "employee">("employee");
+  const [showPassword, setShowPassword] = useState(false);
+  const [accessError, setAccessError] = useState("");
 
   const { data: employee } = useGetEmployee(id!, { query: { enabled: !!id, queryKey: getGetEmployeeQueryKey(id!) } });
   const createMutation = useCreateEmployee();
@@ -68,15 +75,53 @@ export default function EmployeeFormPage() {
   }, [employee, reset]);
 
   const onSubmit = async (data: FormData) => {
+    setAccessError("");
+
+    if (!isEdit && createAccess && accessPassword.length < 6) {
+      setAccessError("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
     if (isEdit && id) {
       await updateMutation.mutateAsync({ id, data });
       await queryClient.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
       await queryClient.invalidateQueries({ queryKey: getGetEmployeeQueryKey(id) });
       toast({ title: "Funcionário atualizado com sucesso" });
     } else {
-      await createMutation.mutateAsync({ data });
+      const employee = await createMutation.mutateAsync({ data });
       await queryClient.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
-      toast({ title: "Funcionário cadastrado com sucesso" });
+
+      if (createAccess && employee?.id) {
+        try {
+          const res = await fetch("/api/users", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              name: data.name,
+              email: data.email,
+              password: accessPassword,
+              role: accessRole,
+              employeeId: employee.id,
+            }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error ?? "Erro ao criar acesso.");
+          }
+          toast({ title: "Funcionário cadastrado com acesso ao sistema!" });
+        } catch (err) {
+          toast({
+            title: "Funcionário criado, mas erro ao criar acesso",
+            description: err instanceof Error ? err.message : "Erro desconhecido.",
+            variant: "destructive",
+          });
+          navigate("/employees");
+          return;
+        }
+      } else {
+        toast({ title: "Funcionário cadastrado com sucesso" });
+      }
     }
     navigate("/employees");
   };
@@ -158,6 +203,58 @@ export default function EmployeeFormPage() {
                 </Select>
               </div>
             </div>
+
+            {!isEdit && (
+              <div className="border rounded-xl p-4 space-y-4 bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Criar acesso ao sistema</span>
+                  </div>
+                  <Switch
+                    checked={createAccess}
+                    onCheckedChange={setCreateAccess}
+                  />
+                </div>
+
+                {createAccess && (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-1">
+                    <div className="space-y-2">
+                      <Label>Senha *</Label>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          value={accessPassword}
+                          onChange={e => setAccessPassword(e.target.value)}
+                          placeholder="Mínimo 6 caracteres"
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {accessError && <p className="text-xs text-destructive">{accessError}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Permissão</Label>
+                      <Select value={accessRole} onValueChange={v => setAccessRole(v as "admin" | "employee")}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="employee">Funcionário</SelectItem>
+                          <SelectItem value="admin">Administrador</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex gap-3 pt-2">
               <Button type="submit" disabled={isSubmitting} className="min-w-32">

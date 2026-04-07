@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, UserCog, Eye, EyeOff } from "lucide-react";
@@ -192,9 +192,9 @@ export default function UsersPage() {
     }
   };
 
-  useState(() => {
+  useEffect(() => {
     loadUsers();
-  });
+  }, []);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Tem certeza que deseja excluir este usuário?")) return;
