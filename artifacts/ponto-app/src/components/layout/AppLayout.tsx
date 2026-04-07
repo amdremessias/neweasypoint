@@ -16,6 +16,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     "/employees": "Funcionários",
     "/attendance": "Registros",
     "/reports": "Relatórios",
+    "/users": "Usuários",
   };
 
   const getBreadcrumb = () => {

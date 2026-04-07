@@ -56,6 +56,26 @@ All time comparisons use **BRT (UTC-3)**. The `getBRTMinutes()` helper converts 
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 
+## Auth System
+
+- Session-based auth with `express-session` + `connect-pg-simple` (sessions stored in PostgreSQL `user_sessions` table)
+- Passwords hashed with `bcryptjs`
+- Roles: `admin` (full app access) and `employee` (simplified "Meu Ponto" view)
+- On startup, if no users exist, the server seeds a default admin using env vars:
+  - `ADMIN_EMAIL` (default: admin@pontofacil.com)
+  - `ADMIN_PASSWORD` (required — if not set, a random password is generated and printed to console)
+  - `ADMIN_NAME` (default: Administrador)
+- `SESSION_SECRET` env var required for session signing
+
+## Docker Deployment
+
+- `Dockerfile` — single-stage build (installs deps, builds Vite frontend and API, runs schema push on start)
+- `docker-compose.yml` — includes `app` + `postgres:16-alpine`
+- Set credentials in `docker-compose.yml` under the `app` service environment:
+  - `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` for the first admin
+  - `SESSION_SECRET` for session signing
+- DB schema applied automatically on container start via `pnpm --filter @workspace/db run push`
+
 ## Seeded Data
 
 8 employees seeded, 95+ historical attendance records (last 3 months), plus today's records for 6 employees. All lateMinutes stored in DB are BRT-correct.

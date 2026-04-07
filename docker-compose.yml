@@ -1,0 +1,40 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      NODE_ENV: production
+      DATABASE_URL: postgresql://ponto:ponto@db:5432/pontofacil
+      SESSION_SECRET: troque-por-um-valor-secreto-longo
+      STATIC_FILES_PATH: /app/artifacts/ponto-app/dist/public
+
+      # Credenciais do primeiro administrador
+      # Obrigatórias na primeira execução (quando não houver usuários no banco)
+      ADMIN_EMAIL: admin@suaempresa.com
+      ADMIN_PASSWORD: troque-sua-senha-aqui
+      ADMIN_NAME: Administrador
+
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: pontofacil
+      POSTGRES_USER: ponto
+      POSTGRES_PASSWORD: ponto
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ponto -d pontofacil"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
