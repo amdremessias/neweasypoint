@@ -20,6 +20,8 @@ const schema = z.object({
   department: z.string().min(1, "Departamento é obrigatório"),
   position: z.string().min(1, "Cargo é obrigatório"),
   expectedCheckin: z.string().min(1, "Horário de entrada é obrigatório"),
+  expectedLunchOut: z.string().min(1, "Horário de saída para almoço é obrigatório"),
+  expectedLunchIn: z.string().min(1, "Horário de retorno do almoço é obrigatório"),
   expectedCheckout: z.string().min(1, "Horário de saída é obrigatório"),
   status: z.enum(["active", "inactive"]),
 });
@@ -55,6 +57,8 @@ export default function EmployeeFormPage() {
       department: "",
       position: "",
       expectedCheckin: "09:00",
+      expectedLunchOut: "12:00",
+      expectedLunchIn: "13:00",
       expectedCheckout: "18:00",
       status: "active",
     },
@@ -68,6 +72,8 @@ export default function EmployeeFormPage() {
         department: employee.department,
         position: employee.position,
         expectedCheckin: employee.expectedCheckin,
+        expectedLunchOut: (employee as any).expectedLunchOut ?? "12:00",
+        expectedLunchIn: (employee as any).expectedLunchIn ?? "13:00",
         expectedCheckout: employee.expectedCheckout,
         status: employee.status as "active" | "inactive",
       });
@@ -179,29 +185,43 @@ export default function EmployeeFormPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Horário de Entrada *</Label>
-                <Input {...register("expectedCheckin")} type="time" />
-                {errors.expectedCheckin && <p className="text-xs text-destructive">{errors.expectedCheckin.message}</p>}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Jornada de Trabalho</Label>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Entrada Manhã *</Label>
+                  <Input {...register("expectedCheckin")} type="time" />
+                  {errors.expectedCheckin && <p className="text-xs text-destructive">{errors.expectedCheckin.message}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Saída Almoço *</Label>
+                  <Input {...register("expectedLunchOut")} type="time" />
+                  {errors.expectedLunchOut && <p className="text-xs text-destructive">{errors.expectedLunchOut.message}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Retorno Almoço *</Label>
+                  <Input {...register("expectedLunchIn")} type="time" />
+                  {errors.expectedLunchIn && <p className="text-xs text-destructive">{errors.expectedLunchIn.message}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Saída Tarde *</Label>
+                  <Input {...register("expectedCheckout")} type="time" />
+                  {errors.expectedCheckout && <p className="text-xs text-destructive">{errors.expectedCheckout.message}</p>}
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Horário de Saída *</Label>
-                <Input {...register("expectedCheckout")} type="time" />
-                {errors.expectedCheckout && <p className="text-xs text-destructive">{errors.expectedCheckout.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select value={watchStatus} onValueChange={v => setValue("status", v as "active" | "inactive")}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Ativo</SelectItem>
-                    <SelectItem value="inactive">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={watchStatus} onValueChange={v => setValue("status", v as "active" | "inactive")}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Ativo</SelectItem>
+                  <SelectItem value="inactive">Inativo</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {!isEdit && (

@@ -21,15 +21,13 @@ const AttendanceListQuery = z.object({
 
 const router: IRouter = Router();
 
-function calcMinutes(clockIn: Date, clockOut: Date): number {
-  return Math.floor((clockOut.getTime() - clockIn.getTime()) / 60000);
+function calcMinutes(start: Date, end: Date): number {
+  return Math.floor((end.getTime() - start.getTime()) / 60000);
 }
 
 function getBRTMinutes(date: Date): number {
-  // Brazil Standard Time is UTC-3
   const brtOffset = -3 * 60;
   const utcMinutes = date.getUTCHours() * 60 + date.getUTCMinutes();
-  // Wrap around midnight
   return ((utcMinutes + brtOffset) + 1440) % 1440;
 }
 
@@ -49,7 +47,7 @@ function calcOvertimeMinutes(expectedCheckout: string, clockOut: Date): number {
   return diff > 0 ? diff : 0;
 }
 
-async function formatRecord(record: typeof attendanceTable.$inferSelect, employee: typeof employeesTable.$inferSelect | null) {
+function formatRecord(record: typeof attendanceTable.$inferSelect, employee: typeof employeesTable.$inferSelect | null) {
   return {
     id: record.id,
     employeeId: record.employeeId,
@@ -57,7 +55,10 @@ async function formatRecord(record: typeof attendanceTable.$inferSelect, employe
     employeeDepartment: employee?.department ?? "Unknown",
     date: record.date,
     clockIn: record.clockIn,
+    lunchOut: record.lunchOut ?? null,
+    lunchIn: record.lunchIn ?? null,
     clockOut: record.clockOut ?? null,
+    lunchMinutes: record.lunchMinutes ?? null,
     totalMinutes: record.totalMinutes ?? null,
     status: record.status,
     notes: record.notes ?? null,
@@ -81,6 +82,18 @@ router.post("/attendance/clockin", async (req, res): Promise<void> => {
 
   const now = new Date();
   const todayStr = now.toISOString().split("T")[0];
+
+  const existing = await db
+    .select()
+    .from(attendanceTable)
+    .where(and(eq(attendanceTable.employeeId, parsed.data.employeeId), eq(attendanceTable.date, todayStr)))
+    .limit(1);
+
+  if (existing.length > 0) {
+    res.status(409).json({ error: "Já existe registro de entrada para hoje." });
+    return;
+  }
+
   const lateMinutes = calcLateMinutes(employee.expectedCheckin, now);
 
   const [record] = await db
@@ -94,7 +107,97 @@ router.post("/attendance/clockin", async (req, res): Promise<void> => {
     })
     .returning();
 
-  res.status(201).json(await formatRecord(record, employee));
+  res.status(201).json(formatRecord(record, employee));
+});
+
+router.post("/attendance/lunch-out", async (req, res): Promise<void> => {
+  const parsed = ClockOutBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const [employee] = await db.select().from(employeesTable).where(eq(employeesTable.id, parsed.data.employeeId));
+  if (!employee) {
+    res.status(404).json({ error: "Employee not found" });
+    return;
+  }
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const [openRecord] = await db
+    .select()
+    .from(attendanceTable)
+    .where(and(eq(attendanceTable.employeeId, parsed.data.employeeId), eq(attendanceTable.date, todayStr), eq(attendanceTable.status, "open")))
+    .orderBy(desc(attendanceTable.clockIn))
+    .limit(1);
+
+  if (!openRecord) {
+    res.status(404).json({ error: "Nenhum registro de entrada em aberto para hoje." });
+    return;
+  }
+
+  if (openRecord.lunchOut) {
+    res.status(409).json({ error: "Saída para almoço já registrada." });
+    return;
+  }
+
+  const now = new Date();
+
+  const [updated] = await db
+    .update(attendanceTable)
+    .set({ lunchOut: now })
+    .where(eq(attendanceTable.id, openRecord.id))
+    .returning();
+
+  res.json(formatRecord(updated, employee));
+});
+
+router.post("/attendance/lunch-in", async (req, res): Promise<void> => {
+  const parsed = ClockOutBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const [employee] = await db.select().from(employeesTable).where(eq(employeesTable.id, parsed.data.employeeId));
+  if (!employee) {
+    res.status(404).json({ error: "Employee not found" });
+    return;
+  }
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const [openRecord] = await db
+    .select()
+    .from(attendanceTable)
+    .where(and(eq(attendanceTable.employeeId, parsed.data.employeeId), eq(attendanceTable.date, todayStr), eq(attendanceTable.status, "open")))
+    .orderBy(desc(attendanceTable.clockIn))
+    .limit(1);
+
+  if (!openRecord) {
+    res.status(404).json({ error: "Nenhum registro de entrada em aberto para hoje." });
+    return;
+  }
+
+  if (!openRecord.lunchOut) {
+    res.status(409).json({ error: "Registre a saída para almoço primeiro." });
+    return;
+  }
+
+  if (openRecord.lunchIn) {
+    res.status(409).json({ error: "Retorno do almoço já registrado." });
+    return;
+  }
+
+  const now = new Date();
+  const lunchMinutes = calcMinutes(openRecord.lunchOut, now);
+
+  const [updated] = await db
+    .update(attendanceTable)
+    .set({ lunchIn: now, lunchMinutes })
+    .where(eq(attendanceTable.id, openRecord.id))
+    .returning();
+
+  res.json(formatRecord(updated, employee));
 });
 
 router.post("/attendance/clockout", async (req, res): Promise<void> => {
@@ -114,23 +217,26 @@ router.post("/attendance/clockout", async (req, res): Promise<void> => {
   const [openRecord] = await db
     .select()
     .from(attendanceTable)
-    .where(
-      and(
-        eq(attendanceTable.employeeId, parsed.data.employeeId),
-        eq(attendanceTable.date, todayStr),
-        eq(attendanceTable.status, "open")
-      )
-    )
+    .where(and(eq(attendanceTable.employeeId, parsed.data.employeeId), eq(attendanceTable.date, todayStr), eq(attendanceTable.status, "open")))
     .orderBy(desc(attendanceTable.clockIn))
     .limit(1);
 
   if (!openRecord) {
-    res.status(404).json({ error: "No open attendance record found for today" });
+    res.status(404).json({ error: "Nenhum registro de entrada em aberto para hoje." });
     return;
   }
 
   const now = new Date();
-  const totalMinutes = calcMinutes(openRecord.clockIn, now);
+
+  let totalMinutes: number;
+  if (openRecord.lunchOut && openRecord.lunchIn) {
+    const morningMinutes = calcMinutes(openRecord.clockIn, openRecord.lunchOut);
+    const afternoonMinutes = calcMinutes(openRecord.lunchIn, now);
+    totalMinutes = morningMinutes + afternoonMinutes;
+  } else {
+    totalMinutes = calcMinutes(openRecord.clockIn, now);
+  }
+
   const overtimeMinutes = calcOvertimeMinutes(employee.expectedCheckout, now);
 
   const [updated] = await db
@@ -139,7 +245,7 @@ router.post("/attendance/clockout", async (req, res): Promise<void> => {
     .where(eq(attendanceTable.id, openRecord.id))
     .returning();
 
-  res.json(await formatRecord(updated, employee));
+  res.json(formatRecord(updated, employee));
 });
 
 router.get("/attendance", async (req, res): Promise<void> => {
@@ -158,29 +264,13 @@ router.get("/attendance", async (req, res): Promise<void> => {
   if (status) conditions.push(eq(attendanceTable.status, status));
 
   const records = await db
-    .select({
-      attendance: attendanceTable,
-      employee: employeesTable,
-    })
+    .select({ attendance: attendanceTable, employee: employeesTable })
     .from(attendanceTable)
     .leftJoin(employeesTable, eq(attendanceTable.employeeId, employeesTable.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(attendanceTable.clockIn));
 
-  const result = records.map(r => ({
-    id: r.attendance.id,
-    employeeId: r.attendance.employeeId,
-    employeeName: r.employee?.name ?? "Unknown",
-    employeeDepartment: r.employee?.department ?? "Unknown",
-    date: r.attendance.date,
-    clockIn: r.attendance.clockIn,
-    clockOut: r.attendance.clockOut ?? null,
-    totalMinutes: r.attendance.totalMinutes ?? null,
-    status: r.attendance.status,
-    notes: r.attendance.notes ?? null,
-    lateMinutes: r.attendance.lateMinutes ?? null,
-    overtimeMinutes: r.attendance.overtimeMinutes ?? null,
-  }));
+  const result = records.map(r => formatRecord(r.attendance, r.employee ?? null));
 
   res.json(result);
 });
@@ -224,7 +314,7 @@ router.post("/attendance", async (req, res): Promise<void> => {
     })
     .returning();
 
-  res.status(201).json(await formatRecord(record, employee ?? null));
+  res.status(201).json(formatRecord(record, employee ?? null));
 });
 
 router.get("/attendance/:id", async (req, res): Promise<void> => {
@@ -245,7 +335,7 @@ router.get("/attendance/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(await formatRecord(row.attendance, row.employee ?? null));
+  res.json(formatRecord(row.attendance, row.employee ?? null));
 });
 
 router.put("/attendance/:id", async (req, res): Promise<void> => {
@@ -292,7 +382,7 @@ router.put("/attendance/:id", async (req, res): Promise<void> => {
     .where(eq(attendanceTable.id, params.data.id))
     .returning();
 
-  res.json(await formatRecord(updated, existing.employee ?? null));
+  res.json(formatRecord(updated, existing.employee ?? null));
 });
 
 router.delete("/attendance/:id", async (req, res): Promise<void> => {

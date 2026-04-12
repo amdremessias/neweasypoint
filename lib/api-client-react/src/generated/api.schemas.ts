@@ -25,6 +25,10 @@ export interface Employee {
   position: string;
   /** Expected check-in time HH:MM */
   expectedCheckin: string;
+  /** Expected lunch start time HH:MM */
+  expectedLunchOut: string;
+  /** Expected lunch end time HH:MM */
+  expectedLunchIn: string;
   /** Expected check-out time HH:MM */
   expectedCheckout: string;
   status: EmployeeStatus;
@@ -45,6 +49,8 @@ export interface CreateEmployeeBody {
   department: string;
   position: string;
   expectedCheckin: string;
+  expectedLunchOut?: string;
+  expectedLunchIn?: string;
   expectedCheckout: string;
   status?: CreateEmployeeBodyStatus;
 }
@@ -63,6 +69,8 @@ export interface UpdateEmployeeBody {
   department?: string;
   position?: string;
   expectedCheckin?: string;
+  expectedLunchOut?: string;
+  expectedLunchIn?: string;
   expectedCheckout?: string;
   status?: UpdateEmployeeBodyStatus;
 }
@@ -82,7 +90,12 @@ export interface AttendanceRecord {
   employeeDepartment: string;
   date: string;
   clockIn: string;
+  lunchOut?: string | null;
+  lunchIn?: string | null;
   clockOut?: string | null;
+  /** Lunch break duration in minutes */
+  lunchMinutes?: number | null;
+  /** Total working minutes excluding lunch */
   totalMinutes?: number | null;
   status: AttendanceRecordStatus;
   notes?: string | null;

@@ -1,0 +1,65 @@
+ => [5/7] RUN pnpm install                                                                                                                                                    16.2s
+ => ERROR [6/7] RUN pnpm --filter @workspace/ponto-app run build                                                                                                               2.3s 
+------                                                                                                                                                                              
+ > [6/7] RUN pnpm --filter @workspace/ponto-app run build:                                                                                                                          
+1.695                                                                                                                                                                               
+1.695 > @workspace/ponto-app@0.0.0 build /app/artifacts/ponto-app                                                                                                                   
+1.695 > vite build --config vite.config.ts                                                                                                                                          
+1.695                                                                                                                                                                               
+2.013 /app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:115
+2.013           throw new Error(
+2.013                 ^
+2.013 
+2.013 Error: Cannot find module @rollup/rollup-linux-x64-musl. npm has a bug related to optional dependencies (https://github.com/npm/cli/issues/4828). Please try `npm i` again after removing both package-lock.json and node_modules directory.
+2.013     at requireWithFriendlyError (/app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:115:9)
+2.013     at Object.<anonymous> (/app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:124:76)
+2.013     at Module._compile (node:internal/modules/cjs/loader:1812:14)
+2.013     at Object..js (node:internal/modules/cjs/loader:1943:10)
+2.013     at Module.load (node:internal/modules/cjs/loader:1533:32)
+2.013     at Module._load (node:internal/modules/cjs/loader:1335:12)
+2.013     at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+2.013     at loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:328:3)
+2.013     at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:233:7)
+2.013     at ModuleJob.run (node:internal/modules/esm/module_job:430:25) {
+2.013   [cause]: Error: Cannot find module '@rollup/rollup-linux-x64-musl'
+2.013   Require stack:
+2.013   - /app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js
+2.013       at Module._resolveFilename (node:internal/modules/cjs/loader:1456:15)
+2.013       at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+2.013       at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)
+2.013       at Module._load (node:internal/modules/cjs/loader:1242:25)
+2.013       at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+2.013       at Module.require (node:internal/modules/cjs/loader:1556:12)
+2.013       at require (node:internal/modules/helpers:152:16)
+2.013       at requireWithFriendlyError (/app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:97:10)
+2.013       at Object.<anonymous> (/app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:124:76)
+2.013       at Module._compile (node:internal/modules/cjs/loader:1812:14) {
+2.013     code: 'MODULE_NOT_FOUND',
+2.013     requireStack: [
+2.013       '/app/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js'
+2.013     ]
+2.013   }
+2.013 }
+2.013 
+2.013 Node.js v24.14.1
+2.050 /app/artifacts/ponto-app:
+2.050  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/ponto-app@0.0.0 build: `vite build --config vite.config.ts`
+2.050 Exit status 1
+------
+[+] up 0/1
+ ⠙ Image new-control-point-app Building                                                                                                                                        19.5s
+Dockerfile:18
+
+--------------------
+
+  16 |     ENV NODE_ENV=production
+
+  17 |     
+
+  18 | >>> RUN pnpm --filter @workspace/ponto-app run build
+
+  19 |     
+
+  20 |     # Build the API server
+
+--------------------

@@ -13,6 +13,8 @@ export interface UpdateEmployeeBody {
   department?: string;
   position?: string;
   expectedCheckin?: string;
+  expectedLunchOut?: string;
+  expectedLunchIn?: string;
   expectedCheckout?: string;
   status?: UpdateEmployeeBodyStatus;
 }

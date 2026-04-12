@@ -2,10 +2,20 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
-import { useListAttendance, useClockIn, useClockOut } from "@workspace/api-client-react";
+import { useListAttendance } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, LogOut, Clock, User } from "lucide-react";
+import { LogIn, LogOut, Clock, User, Coffee, UtensilsCrossed } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+type PontoStep = "not_started" | "morning" | "lunch" | "afternoon" | "closed";
+
+function getPontoStep(record: any): PontoStep {
+  if (!record) return "not_started";
+  if (record.status === "closed") return "closed";
+  if (!record.lunchOut) return "morning";
+  if (!record.lunchIn) return "lunch";
+  return "afternoon";
+}
 
 export default function MeuPontoPage() {
   const { user, logout } = useAuth();
@@ -24,47 +34,48 @@ export default function MeuPontoPage() {
     (r: any) => r.date === todayStr && r.employeeId === employeeId
   );
 
-  const isClockedIn = todayRecord?.status === "open";
-  const isClockedOut = todayRecord?.status === "closed";
+  const step = getPontoStep(todayRecord);
 
-  const clockInMutation = useClockIn();
-  const clockOutMutation = useClockOut();
-
-  const handleClockIn = async () => {
-    if (!employeeId) return;
-    setLoading(true);
-    try {
-      await clockInMutation.mutateAsync({ data: { employeeId } });
-      toast({ title: "Entrada registrada!", description: "Bom trabalho!" });
-      refetch();
-    } catch {
-      toast({ title: "Erro", description: "Já existe registro de entrada para hoje.", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleClockOut = async () => {
-    if (!employeeId) return;
-    setLoading(true);
-    try {
-      await clockOutMutation.mutateAsync({ data: { employeeId } });
-      toast({ title: "Saída registrada!", description: "Até amanhã!" });
-      refetch();
-    } catch {
-      toast({ title: "Erro", description: "Nenhum registro de entrada em aberto.", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const recentRecords = todayRecords.slice(0, 10);
-
-  const formatTime = (iso: string | null) => {
+  const formatTime = (iso: string | null | undefined) => {
     if (!iso) return "—";
     const d = new Date(iso);
-    return `${String(d.getUTCHours() - 3 < 0 ? d.getUTCHours() + 21 : d.getUTCHours() - 3).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+    const brtHours = ((d.getUTCHours() - 3) + 24) % 24;
+    return `${String(brtHours).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
   };
+
+  const apiAction = async (url: string, successMsg: string, successDesc: string, errorMsg: string) => {
+    if (!employeeId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ employeeId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? errorMsg);
+      }
+      toast({ title: successMsg, description: successDesc });
+      refetch();
+    } catch (err) {
+      toast({
+        title: "Erro",
+        description: err instanceof Error ? err.message : errorMsg,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClockIn = () => apiAction("/api/attendance/clockin", "Entrada registrada!", "Bom trabalho!", "Não foi possível registrar entrada.");
+  const handleLunchOut = () => apiAction("/api/attendance/lunch-out", "Saída para almoço registrada!", "Bom almoço!", "Não foi possível registrar saída para almoço.");
+  const handleLunchIn = () => apiAction("/api/attendance/lunch-in", "Retorno do almoço registrado!", "Boa tarde!", "Não foi possível registrar retorno do almoço.");
+  const handleClockOut = () => apiAction("/api/attendance/clockout", "Saída registrada!", "Até amanhã!", "Não foi possível registrar saída.");
+
+  const recentRecords = todayRecords.slice(0, 10);
 
   return (
     <div className="min-h-screen bg-background">
@@ -96,80 +107,144 @@ export default function MeuPontoPage() {
           </p>
         </div>
 
+        {/* Progress bar - 4 etapas */}
+        <div className="flex items-center gap-1">
+          {[
+            { key: "morning", label: "Manhã" },
+            { key: "lunch", label: "Almoço" },
+            { key: "afternoon", label: "Tarde" },
+            { key: "closed", label: "Encerrado" },
+          ].map((s, i) => {
+            const stepOrder = { not_started: -1, morning: 0, lunch: 1, afternoon: 2, closed: 3 };
+            const currentIdx = stepOrder[step];
+            const done = i < currentIdx;
+            const active = i === currentIdx;
+            return (
+              <div key={s.key} className="flex-1 flex flex-col items-center gap-1">
+                <div className={`h-1.5 w-full rounded-full ${done || active ? "bg-primary" : "bg-muted"}`} />
+                <span className={`text-[10px] ${active ? "text-primary font-semibold" : done ? "text-muted-foreground" : "text-muted-foreground/50"}`}>
+                  {s.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
         <div className="bg-card rounded-2xl border p-6 text-center space-y-4">
-          {!todayRecord && (
-            <div className="space-y-2">
+          {step === "not_started" && (
+            <div className="space-y-3">
               <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto">
                 <Clock className="w-8 h-8 text-muted-foreground" />
               </div>
               <p className="text-muted-foreground text-sm">Nenhum registro hoje.</p>
-              <Button
-                onClick={handleClockIn}
-                disabled={loading}
-                className="gap-2 mt-2"
-                size="lg"
-              >
+              <Button onClick={handleClockIn} disabled={loading} className="gap-2 mt-2" size="lg">
                 <LogIn className="w-5 h-5" />
-                Registrar Entrada
+                Entrada Manhã
               </Button>
             </div>
           )}
 
-          {isClockedIn && (
+          {step === "morning" && (
             <div className="space-y-3">
               <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
                 <Clock className="w-8 h-8 text-green-600" />
               </div>
-              <div>
-                <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  Em andamento
-                </span>
-              </div>
+              <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Período da Manhã
+              </span>
               <p className="text-sm text-muted-foreground">
-                Entrada registrada às <strong>{formatTime(todayRecord.clockIn)}</strong>
-                {(todayRecord.lateMinutes ?? 0) > 0 && (
-                  <span className="text-amber-600 ml-1">
-                    (+{todayRecord.lateMinutes} min de atraso)
-                  </span>
+                Entrada: <strong>{formatTime(todayRecord?.clockIn)}</strong>
+                {(todayRecord?.lateMinutes ?? 0) > 0 && (
+                  <span className="text-amber-600 ml-1">(+{todayRecord.lateMinutes} min de atraso)</span>
                 )}
               </p>
-              <Button
-                onClick={handleClockOut}
-                disabled={loading}
-                variant="outline"
-                className="gap-2"
-                size="lg"
-              >
-                <LogOut className="w-5 h-5" />
-                Registrar Saída
+              <Button onClick={handleLunchOut} disabled={loading} variant="outline" className="gap-2" size="lg">
+                <UtensilsCrossed className="w-5 h-5" />
+                Saída para Almoço
               </Button>
             </div>
           )}
 
-          {isClockedOut && (
-            <div className="space-y-2">
+          {step === "lunch" && (
+            <div className="space-y-3">
+              <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto">
+                <Coffee className="w-8 h-8 text-amber-600" />
+              </div>
+              <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Intervalo de Almoço
+              </span>
+              <p className="text-sm text-muted-foreground">
+                Saída: <strong>{formatTime(todayRecord?.lunchOut)}</strong>
+              </p>
+              <Button onClick={handleLunchIn} disabled={loading} className="gap-2" size="lg">
+                <LogIn className="w-5 h-5" />
+                Retorno do Almoço
+              </Button>
+            </div>
+          )}
+
+          {step === "afternoon" && (
+            <div className="space-y-3">
               <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto">
                 <Clock className="w-8 h-8 text-blue-600" />
               </div>
               <span className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">
-                Concluído
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                Período da Tarde
               </span>
-              <p className="text-sm text-muted-foreground">
-                Entrada: <strong>{formatTime(todayRecord.clockIn)}</strong>
-                {" · "}
-                Saída: <strong>{formatTime(todayRecord.clockOut)}</strong>
-              </p>
-              {todayRecord.totalMinutes != null && (
-                <p className="text-sm font-medium text-foreground">
-                  Total: {Math.floor(todayRecord.totalMinutes / 60)}h{todayRecord.totalMinutes % 60 > 0 ? `${todayRecord.totalMinutes % 60}min` : ""}
+              <div className="text-sm text-muted-foreground space-y-0.5">
+                <p>Entrada manhã: <strong>{formatTime(todayRecord?.clockIn)}</strong></p>
+                <p>Almoço: <strong>{formatTime(todayRecord?.lunchOut)}</strong> → <strong>{formatTime(todayRecord?.lunchIn)}</strong>
+                  {todayRecord?.lunchMinutes != null && <span className="text-muted-foreground ml-1">({todayRecord.lunchMinutes} min)</span>}
                 </p>
+              </div>
+              <Button onClick={handleClockOut} disabled={loading} variant="outline" className="gap-2" size="lg">
+                <LogOut className="w-5 h-5" />
+                Saída Tarde
+              </Button>
+            </div>
+          )}
+
+          {step === "closed" && (
+            <div className="space-y-3">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
+                <Clock className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <span className="inline-flex items-center gap-1.5 bg-muted text-muted-foreground text-xs font-medium px-2.5 py-1 rounded-full">
+                Jornada Concluída
+              </span>
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>
+                  <span className="text-foreground font-medium">Manhã:</span>{" "}
+                  {formatTime(todayRecord?.clockIn)} → {formatTime(todayRecord?.lunchOut)}
+                </p>
+                {todayRecord?.lunchOut && (
+                  <p>
+                    <span className="text-foreground font-medium">Almoço:</span>{" "}
+                    {formatTime(todayRecord?.lunchOut)} → {formatTime(todayRecord?.lunchIn)}
+                    {todayRecord?.lunchMinutes != null && <span className="ml-1">({todayRecord.lunchMinutes} min)</span>}
+                  </p>
+                )}
+                <p>
+                  <span className="text-foreground font-medium">Tarde:</span>{" "}
+                  {formatTime(todayRecord?.lunchIn || todayRecord?.clockIn)} → {formatTime(todayRecord?.clockOut)}
+                </p>
+              </div>
+              {todayRecord?.totalMinutes != null && (
+                <p className="text-base font-semibold text-foreground">
+                  Total trabalhado: {Math.floor(todayRecord.totalMinutes / 60)}h{todayRecord.totalMinutes % 60 > 0 ? `${todayRecord.totalMinutes % 60}min` : ""}
+                </p>
+              )}
+              {(todayRecord?.overtimeMinutes ?? 0) > 0 && (
+                <p className="text-xs text-primary">+{todayRecord.overtimeMinutes} min de hora extra</p>
               )}
             </div>
           )}
         </div>
 
-        {/* Recent records */}
+        {/* Registros recentes */}
         <div className="bg-card rounded-2xl border overflow-hidden">
           <div className="px-5 py-4 border-b">
             <h2 className="font-semibold text-sm text-foreground">Registros Recentes</h2>
@@ -181,19 +256,9 @@ export default function MeuPontoPage() {
           ) : (
             <ul className="divide-y">
               {recentRecords.map((rec: any) => (
-                <li key={rec.id} className="flex items-center justify-between px-5 py-3">
-                  <div>
+                <li key={rec.id} className="px-5 py-3">
+                  <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-foreground">{rec.date}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatTime(rec.clockIn)} → {formatTime(rec.clockOut)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {(rec.lateMinutes ?? 0) > 0 && (
-                      <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                        +{rec.lateMinutes} min
-                      </span>
-                    )}
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full ${
                         rec.status === "open"
@@ -203,6 +268,19 @@ export default function MeuPontoPage() {
                     >
                       {rec.status === "open" ? "Em andamento" : "Concluído"}
                     </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                    <span>Entrada: {formatTime(rec.clockIn)}</span>
+                    {rec.lunchOut && <span>Almoço: {formatTime(rec.lunchOut)} → {formatTime(rec.lunchIn)}</span>}
+                    {rec.clockOut && <span>Saída: {formatTime(rec.clockOut)}</span>}
+                    {rec.totalMinutes != null && (
+                      <span className="font-medium text-foreground">
+                        {Math.floor(rec.totalMinutes / 60)}h{rec.totalMinutes % 60 > 0 ? `${rec.totalMinutes % 60}min` : ""}
+                      </span>
+                    )}
+                    {(rec.lateMinutes ?? 0) > 0 && (
+                      <span className="text-amber-600">+{rec.lateMinutes} min atraso</span>
+                    )}
                   </div>
                 </li>
               ))}

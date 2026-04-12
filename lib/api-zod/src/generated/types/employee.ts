@@ -15,6 +15,10 @@ export interface Employee {
   position: string;
   /** Expected check-in time HH:MM */
   expectedCheckin: string;
+  /** Expected lunch start time HH:MM */
+  expectedLunchOut: string;
+  /** Expected lunch end time HH:MM */
+  expectedLunchIn: string;
   /** Expected check-out time HH:MM */
   expectedCheckout: string;
   status: EmployeeStatus;

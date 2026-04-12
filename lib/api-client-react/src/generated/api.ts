@@ -1084,7 +1084,7 @@ export const useClockIn = <
 };
 
 /**
- * @summary Quick clock-out for an employee
+ * @summary Quick clock-out for an employee (end of day)
  */
 export const getClockOutUrl = () => {
   return `/api/attendance/clockout`;
@@ -1147,7 +1147,7 @@ export type ClockOutMutationBody = BodyType<ClockOutBody>;
 export type ClockOutMutationError = ErrorType<unknown>;
 
 /**
- * @summary Quick clock-out for an employee
+ * @summary Quick clock-out for an employee (end of day)
  */
 export const useClockOut = <
   TError = ErrorType<unknown>,
@@ -1167,6 +1167,178 @@ export const useClockOut = <
   TContext
 > => {
   return useMutation(getClockOutMutationOptions(options));
+};
+
+/**
+ * @summary Register start of lunch break (morning clock-out)
+ */
+export const getLunchOutUrl = () => {
+  return `/api/attendance/lunch-out`;
+};
+
+export const lunchOut = async (
+  clockOutBody: ClockOutBody,
+  options?: RequestInit,
+): Promise<AttendanceRecord> => {
+  return customFetch<AttendanceRecord>(getLunchOutUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(clockOutBody),
+  });
+};
+
+export const getLunchOutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof lunchOut>>,
+    TError,
+    { data: BodyType<ClockOutBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof lunchOut>>,
+  TError,
+  { data: BodyType<ClockOutBody> },
+  TContext
+> => {
+  const mutationKey = ["lunchOut"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof lunchOut>>,
+    { data: BodyType<ClockOutBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return lunchOut(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LunchOutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof lunchOut>>
+>;
+export type LunchOutMutationBody = BodyType<ClockOutBody>;
+export type LunchOutMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Register start of lunch break (morning clock-out)
+ */
+export const useLunchOut = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof lunchOut>>,
+    TError,
+    { data: BodyType<ClockOutBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof lunchOut>>,
+  TError,
+  { data: BodyType<ClockOutBody> },
+  TContext
+> => {
+  return useMutation(getLunchOutMutationOptions(options));
+};
+
+/**
+ * @summary Register return from lunch break (afternoon clock-in)
+ */
+export const getLunchInUrl = () => {
+  return `/api/attendance/lunch-in`;
+};
+
+export const lunchIn = async (
+  clockOutBody: ClockOutBody,
+  options?: RequestInit,
+): Promise<AttendanceRecord> => {
+  return customFetch<AttendanceRecord>(getLunchInUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(clockOutBody),
+  });
+};
+
+export const getLunchInMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof lunchIn>>,
+    TError,
+    { data: BodyType<ClockOutBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof lunchIn>>,
+  TError,
+  { data: BodyType<ClockOutBody> },
+  TContext
+> => {
+  const mutationKey = ["lunchIn"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof lunchIn>>,
+    { data: BodyType<ClockOutBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return lunchIn(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LunchInMutationResult = NonNullable<
+  Awaited<ReturnType<typeof lunchIn>>
+>;
+export type LunchInMutationBody = BodyType<ClockOutBody>;
+export type LunchInMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Register return from lunch break (afternoon clock-in)
+ */
+export const useLunchIn = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof lunchIn>>,
+    TError,
+    { data: BodyType<ClockOutBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof lunchIn>>,
+  TError,
+  { data: BodyType<ClockOutBody> },
+  TContext
+> => {
+  return useMutation(getLunchInMutationOptions(options));
 };
 
 /**

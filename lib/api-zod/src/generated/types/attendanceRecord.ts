@@ -14,7 +14,12 @@ export interface AttendanceRecord {
   employeeDepartment: string;
   date: Date;
   clockIn: Date;
+  lunchOut?: Date | null;
+  lunchIn?: Date | null;
   clockOut?: Date | null;
+  /** Lunch break duration in minutes */
+  lunchMinutes?: number | null;
+  /** Total working minutes excluding lunch */
   totalMinutes?: number | null;
   status: AttendanceRecordStatus;
   notes?: string | null;

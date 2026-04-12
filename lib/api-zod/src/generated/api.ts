@@ -30,6 +30,8 @@ export const ListEmployeesResponseItem = zod.object({
   department: zod.string(),
   position: zod.string(),
   expectedCheckin: zod.string().describe("Expected check-in time HH:MM"),
+  expectedLunchOut: zod.string().describe("Expected lunch start time HH:MM"),
+  expectedLunchIn: zod.string().describe("Expected lunch end time HH:MM"),
   expectedCheckout: zod.string().describe("Expected check-out time HH:MM"),
   status: zod.enum(["active", "inactive"]),
   createdAt: zod.coerce.date(),
@@ -47,6 +49,8 @@ export const CreateEmployeeBody = zod.object({
   department: zod.string(),
   position: zod.string(),
   expectedCheckin: zod.string(),
+  expectedLunchOut: zod.string().optional(),
+  expectedLunchIn: zod.string().optional(),
   expectedCheckout: zod.string(),
   status: zod
     .enum(["active", "inactive"])
@@ -67,6 +71,8 @@ export const GetEmployeeResponse = zod.object({
   department: zod.string(),
   position: zod.string(),
   expectedCheckin: zod.string().describe("Expected check-in time HH:MM"),
+  expectedLunchOut: zod.string().describe("Expected lunch start time HH:MM"),
+  expectedLunchIn: zod.string().describe("Expected lunch end time HH:MM"),
   expectedCheckout: zod.string().describe("Expected check-out time HH:MM"),
   status: zod.enum(["active", "inactive"]),
   createdAt: zod.coerce.date(),
@@ -85,6 +91,8 @@ export const UpdateEmployeeBody = zod.object({
   department: zod.string().optional(),
   position: zod.string().optional(),
   expectedCheckin: zod.string().optional(),
+  expectedLunchOut: zod.string().optional(),
+  expectedLunchIn: zod.string().optional(),
   expectedCheckout: zod.string().optional(),
   status: zod.enum(["active", "inactive"]).optional(),
 });
@@ -96,6 +104,8 @@ export const UpdateEmployeeResponse = zod.object({
   department: zod.string(),
   position: zod.string(),
   expectedCheckin: zod.string().describe("Expected check-in time HH:MM"),
+  expectedLunchOut: zod.string().describe("Expected lunch start time HH:MM"),
+  expectedLunchIn: zod.string().describe("Expected lunch end time HH:MM"),
   expectedCheckout: zod.string().describe("Expected check-out time HH:MM"),
   status: zod.enum(["active", "inactive"]),
   createdAt: zod.coerce.date(),
@@ -125,8 +135,17 @@ export const ListAttendanceResponseItem = zod.object({
   employeeDepartment: zod.string(),
   date: zod.coerce.date(),
   clockIn: zod.coerce.date(),
+  lunchOut: zod.coerce.date().nullish(),
+  lunchIn: zod.coerce.date().nullish(),
   clockOut: zod.coerce.date().nullish(),
-  totalMinutes: zod.number().nullish(),
+  lunchMinutes: zod
+    .number()
+    .nullish()
+    .describe("Lunch break duration in minutes"),
+  totalMinutes: zod
+    .number()
+    .nullish()
+    .describe("Total working minutes excluding lunch"),
   status: zod.enum(["open", "closed"]),
   notes: zod.string().nullish(),
   lateMinutes: zod
@@ -161,8 +180,17 @@ export const GetAttendanceResponse = zod.object({
   employeeDepartment: zod.string(),
   date: zod.coerce.date(),
   clockIn: zod.coerce.date(),
+  lunchOut: zod.coerce.date().nullish(),
+  lunchIn: zod.coerce.date().nullish(),
   clockOut: zod.coerce.date().nullish(),
-  totalMinutes: zod.number().nullish(),
+  lunchMinutes: zod
+    .number()
+    .nullish()
+    .describe("Lunch break duration in minutes"),
+  totalMinutes: zod
+    .number()
+    .nullish()
+    .describe("Total working minutes excluding lunch"),
   status: zod.enum(["open", "closed"]),
   notes: zod.string().nullish(),
   lateMinutes: zod
@@ -192,8 +220,17 @@ export const UpdateAttendanceResponse = zod.object({
   employeeDepartment: zod.string(),
   date: zod.coerce.date(),
   clockIn: zod.coerce.date(),
+  lunchOut: zod.coerce.date().nullish(),
+  lunchIn: zod.coerce.date().nullish(),
   clockOut: zod.coerce.date().nullish(),
-  totalMinutes: zod.number().nullish(),
+  lunchMinutes: zod
+    .number()
+    .nullish()
+    .describe("Lunch break duration in minutes"),
+  totalMinutes: zod
+    .number()
+    .nullish()
+    .describe("Total working minutes excluding lunch"),
   status: zod.enum(["open", "closed"]),
   notes: zod.string().nullish(),
   lateMinutes: zod
@@ -218,7 +255,7 @@ export const ClockInBody = zod.object({
 });
 
 /**
- * @summary Quick clock-out for an employee
+ * @summary Quick clock-out for an employee (end of day)
  */
 export const ClockOutBody = zod.object({
   employeeId: zod.number(),
@@ -231,8 +268,85 @@ export const ClockOutResponse = zod.object({
   employeeDepartment: zod.string(),
   date: zod.coerce.date(),
   clockIn: zod.coerce.date(),
+  lunchOut: zod.coerce.date().nullish(),
+  lunchIn: zod.coerce.date().nullish(),
   clockOut: zod.coerce.date().nullish(),
-  totalMinutes: zod.number().nullish(),
+  lunchMinutes: zod
+    .number()
+    .nullish()
+    .describe("Lunch break duration in minutes"),
+  totalMinutes: zod
+    .number()
+    .nullish()
+    .describe("Total working minutes excluding lunch"),
+  status: zod.enum(["open", "closed"]),
+  notes: zod.string().nullish(),
+  lateMinutes: zod
+    .number()
+    .nullish()
+    .describe("Minutes late compared to expected checkin"),
+  overtimeMinutes: zod.number().nullish(),
+});
+
+/**
+ * @summary Register start of lunch break (morning clock-out)
+ */
+export const LunchOutBody = zod.object({
+  employeeId: zod.number(),
+});
+
+export const LunchOutResponse = zod.object({
+  id: zod.number(),
+  employeeId: zod.number(),
+  employeeName: zod.string(),
+  employeeDepartment: zod.string(),
+  date: zod.coerce.date(),
+  clockIn: zod.coerce.date(),
+  lunchOut: zod.coerce.date().nullish(),
+  lunchIn: zod.coerce.date().nullish(),
+  clockOut: zod.coerce.date().nullish(),
+  lunchMinutes: zod
+    .number()
+    .nullish()
+    .describe("Lunch break duration in minutes"),
+  totalMinutes: zod
+    .number()
+    .nullish()
+    .describe("Total working minutes excluding lunch"),
+  status: zod.enum(["open", "closed"]),
+  notes: zod.string().nullish(),
+  lateMinutes: zod
+    .number()
+    .nullish()
+    .describe("Minutes late compared to expected checkin"),
+  overtimeMinutes: zod.number().nullish(),
+});
+
+/**
+ * @summary Register return from lunch break (afternoon clock-in)
+ */
+export const LunchInBody = zod.object({
+  employeeId: zod.number(),
+});
+
+export const LunchInResponse = zod.object({
+  id: zod.number(),
+  employeeId: zod.number(),
+  employeeName: zod.string(),
+  employeeDepartment: zod.string(),
+  date: zod.coerce.date(),
+  clockIn: zod.coerce.date(),
+  lunchOut: zod.coerce.date().nullish(),
+  lunchIn: zod.coerce.date().nullish(),
+  clockOut: zod.coerce.date().nullish(),
+  lunchMinutes: zod
+    .number()
+    .nullish()
+    .describe("Lunch break duration in minutes"),
+  totalMinutes: zod
+    .number()
+    .nullish()
+    .describe("Total working minutes excluding lunch"),
   status: zod.enum(["open", "closed"]),
   notes: zod.string().nullish(),
   lateMinutes: zod

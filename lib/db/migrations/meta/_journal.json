@@ -8,6 +8,13 @@
       "when": 1775581438191,
       "tag": "0000_huge_kang",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775952333255,
+      "tag": "0001_add_lunch_shifts",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,8 @@ export const employeesTable = pgTable("employees", {
   department: text("department").notNull(),
   position: text("position").notNull(),
   expectedCheckin: text("expected_checkin").notNull().default("09:00"),
+  expectedLunchOut: text("expected_lunch_out").notNull().default("12:00"),
+  expectedLunchIn: text("expected_lunch_in").notNull().default("13:00"),
   expectedCheckout: text("expected_checkout").notNull().default("18:00"),
   status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

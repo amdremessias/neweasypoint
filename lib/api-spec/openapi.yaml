@@ -263,7 +263,7 @@ paths:
     post:
       operationId: clockOut
       tags: [attendance]
-      summary: Quick clock-out for an employee
+      summary: Quick clock-out for an employee (end of day)
       requestBody:
         required: true
         content:
@@ -273,6 +273,44 @@ paths:
       responses:
         "200":
           description: Clocked out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceRecord"
+
+  /attendance/lunch-out:
+    post:
+      operationId: lunchOut
+      tags: [attendance]
+      summary: Register start of lunch break (morning clock-out)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClockOutBody"
+      responses:
+        "200":
+          description: Lunch out registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceRecord"
+
+  /attendance/lunch-in:
+    post:
+      operationId: lunchIn
+      tags: [attendance]
+      summary: Register return from lunch break (afternoon clock-in)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClockOutBody"
+      responses:
+        "200":
+          description: Lunch in registered
           content:
             application/json:
               schema:
@@ -395,6 +433,12 @@ components:
         expectedCheckin:
           type: string
           description: Expected check-in time HH:MM
+        expectedLunchOut:
+          type: string
+          description: Expected lunch start time HH:MM
+        expectedLunchIn:
+          type: string
+          description: Expected lunch end time HH:MM
         expectedCheckout:
           type: string
           description: Expected check-out time HH:MM
@@ -411,6 +455,8 @@ components:
         - department
         - position
         - expectedCheckin
+        - expectedLunchOut
+        - expectedLunchIn
         - expectedCheckout
         - status
         - createdAt
@@ -427,6 +473,10 @@ components:
         position:
           type: string
         expectedCheckin:
+          type: string
+        expectedLunchOut:
+          type: string
+        expectedLunchIn:
           type: string
         expectedCheckout:
           type: string
@@ -455,6 +505,10 @@ components:
           type: string
         expectedCheckin:
           type: string
+        expectedLunchOut:
+          type: string
+        expectedLunchIn:
+          type: string
         expectedCheckout:
           type: string
         status:
@@ -478,13 +532,26 @@ components:
         clockIn:
           type: string
           format: date-time
+        lunchOut:
+          type: string
+          format: date-time
+          nullable: true
+        lunchIn:
+          type: string
+          format: date-time
+          nullable: true
         clockOut:
           type: string
           format: date-time
           nullable: true
+        lunchMinutes:
+          type: integer
+          nullable: true
+          description: Lunch break duration in minutes
         totalMinutes:
           type: integer
           nullable: true
+          description: Total working minutes excluding lunch
         status:
           type: string
           enum: [open, closed]
