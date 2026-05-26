@@ -198,12 +198,18 @@ router.post("/payroll", requireManager, async (req, res): Promise<void> => {
   absentDays = Math.max(0, workDays - records.filter((r) => r.totalMinutes && r.totalMinutes > 0).length);
 
   const salary = Number(employee.salary ?? 0);
+  const safeWorkDays = Math.max(1, workDays);
   const hourlyRate = salary / 220;
   const overtimeHours = overtimeMinutes / 60;
   const overtimePay = Math.round(overtimeHours * hourlyRate * 1.5 * 100) / 100;
-  const dailySalary = salary / workDays;
+  const dailySalary = salary / safeWorkDays;
   const deductions = Math.round(absentDays * dailySalary * 100) / 100;
   const netSalary = Math.round((salary + overtimePay - deductions) * 100) / 100;
+
+  if (!Number.isFinite(salary) || !Number.isFinite(overtimePay) || !Number.isFinite(deductions) || !Number.isFinite(netSalary)) {
+    res.status(400).json({ error: "Valores de folha de pagamento invalidos. Verifique salario e jornada do funcionario." });
+    return;
+  }
 
   // Upsert
   const existing = await db
