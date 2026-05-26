@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { db, employeesTable, attendanceTable, payrollPeriodsTable } from "@workspace/db";
-import { requireAdmin } from "../middlewares/requireAuth";
+import { requireManager } from "../middlewares/requireAuth";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -17,7 +17,7 @@ function calcWorkDays(start: Date, end: Date): number {
   return count;
 }
 
-router.get("/payroll", requireAdmin, async (req, res): Promise<void> => {
+router.get("/payroll", requireManager, async (req, res): Promise<void> => {
   const { employeeId, month, year } = req.query as Record<string, string>;
 
   let query = db.select().from(payrollPeriodsTable).orderBy(payrollPeriodsTable.year, payrollPeriodsTable.month);
@@ -40,7 +40,7 @@ router.get("/payroll", requireAdmin, async (req, res): Promise<void> => {
   res.json(enriched);
 });
 
-router.get("/payroll/:employeeId/:month/:year", requireAdmin, async (req, res): Promise<void> => {
+router.get("/payroll/:employeeId/:month/:year", requireManager, async (req, res): Promise<void> => {
   const employeeId = Number(req.params.employeeId);
   const month = Number(req.params.month);
   const year = Number(req.params.year);
@@ -143,7 +143,7 @@ router.get("/payroll/:employeeId/:month/:year", requireAdmin, async (req, res): 
   });
 });
 
-router.post("/payroll", requireAdmin, async (req, res): Promise<void> => {
+router.post("/payroll", requireManager, async (req, res): Promise<void> => {
   const schema = z.object({
     employeeId: z.number().int().positive(),
     month: z.number().int().min(1).max(12),
