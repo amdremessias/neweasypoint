@@ -330,4 +330,63 @@ router.get("/reports/late-arrivals", async (req, res): Promise<void> => {
   res.json(result);
 });
 
+router.get("/reports/late-arrivals-detailed", async (req, res): Promise<void> => {
+  const { employeeId, dateFrom, dateTo } = req.query as Record<string, string>;
+
+  const conditions = [sql`${attendanceTable.lateMinutes} > 0`];
+  if (employeeId) conditions.push(eq(attendanceTable.employeeId, Number(employeeId)));
+  if (dateFrom) conditions.push(gte(attendanceTable.date, dateFrom));
+  if (dateTo) conditions.push(lte(attendanceTable.date, dateTo));
+
+  const records = await db
+    .select({ attendance: attendanceTable, employee: employeesTable })
+    .from(attendanceTable)
+    .leftJoin(employeesTable, eq(attendanceTable.employeeId, employeesTable.id))
+    .where(and(...conditions))
+    .orderBy(desc(attendanceTable.date));
+
+  // Group by employee for summary
+  const byEmployee = new Map<number, { name: string; department: string; totalLateMinutes: number; lateDays: number; records: typeof records }>();
+
+  for (const r of records) {
+    const eid = r.attendance.employeeId;
+    if (!byEmployee.has(eid)) {
+      byEmployee.set(eid, {
+        name: r.employee?.name ?? "Unknown",
+        department: r.employee?.department ?? "Unknown",
+        totalLateMinutes: 0,
+        lateDays: 0,
+        records: [],
+      });
+    }
+    const entry = byEmployee.get(eid)!;
+    entry.totalLateMinutes += r.attendance.lateMinutes ?? 0;
+    entry.lateDays++;
+    entry.records.push(r);
+  }
+
+  const summary = Array.from(byEmployee.entries()).map(([employeeId, data]) => ({
+    employeeId,
+    employeeName: data.name,
+    department: data.department,
+    totalLateMinutes: data.totalLateMinutes,
+    lateDays: data.lateDays,
+    averageLateMinutes: data.lateDays > 0 ? Math.round(data.totalLateMinutes / data.lateDays) : 0,
+  }));
+
+  res.json({
+    totalLateRecords: records.length,
+    summary,
+    records: records.map(r => ({
+      date: r.attendance.date,
+      employeeId: r.attendance.employeeId,
+      employeeName: r.employee?.name ?? "Unknown",
+      department: r.employee?.department ?? "Unknown",
+      expectedCheckin: r.employee?.expectedCheckin ?? "09:00",
+      actualCheckin: r.attendance.clockIn,
+      lateMinutes: r.attendance.lateMinutes ?? 0,
+    })),
+  });
+});
+
 export default router;

@@ -4,7 +4,8 @@ export interface AuthUser {
   id: number;
   name: string;
   email: string;
-  role: "admin" | "employee";
+  role: "admin" | "manager" | "employee";
+  permissions: string[];
   employeeId: number | null;
   employee?: {
     id: number;
@@ -13,6 +14,7 @@ export interface AuthUser {
     position: string;
     expectedCheckin: string;
     expectedCheckout: string;
+    bancoDeHorasMinutes?: number;
   } | null;
 }
 
@@ -22,6 +24,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isAdmin: boolean;
+  isManager: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -59,7 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin: user?.role === "admin" }}>
+    <AuthContext.Provider value={{
+      user, loading, login, logout,
+      isAdmin: user?.role === "admin",
+      isManager: user?.role === "admin" || user?.role === "manager",
+    }}>
       {children}
     </AuthContext.Provider>
   );

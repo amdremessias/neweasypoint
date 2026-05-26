@@ -7,33 +7,45 @@ import {
   BriefcaseBusiness,
   UserCog,
   LogOut,
+  Settings2,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
-const navItems = [
+const allNavItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/employees", icon: Users, label: "Funcionários" },
+  { href: "/employees", icon: Users, label: "Funcionarios" },
   { href: "/attendance", icon: Clock, label: "Registros" },
-  { href: "/reports", icon: BarChart3, label: "Relatórios" },
-  { href: "/users", icon: UserCog, label: "Usuários" },
+  { href: "/reports", icon: BarChart3, label: "Relatorios" },
+  { href: "/payroll", icon: Wallet, label: "Folha de Pagamento" },
+  { href: "/users", icon: UserCog, label: "Usuarios", adminOnly: true },
+  { href: "/integrations", icon: Settings2, label: "Integracoes", adminOnly: true },
 ];
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
+
+  const navItems = allNavItems.filter((item) => !item.adminOnly || isAdmin);
 
   const isActive = (path: string) => {
     if (path === "/dashboard" && location === "/") return true;
     return location.startsWith(path);
   };
 
+  const roleLabel = user?.role === "admin"
+    ? "Administrador"
+    : user?.role === "manager"
+    ? "Gestor"
+    : "Funcionario";
+
   return (
     <aside className="fixed inset-y-0 left-0 z-20 flex w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 shrink-0 items-center px-6 font-bold text-xl tracking-tight gap-2 text-sidebar-primary">
         <BriefcaseBusiness className="w-6 h-6 text-sidebar-primary" />
-        <span>PontoFácil</span>
+        <span>PontoFacil</span>
       </div>
 
       <div className="flex flex-col gap-1 px-4 py-4 flex-1">
@@ -72,7 +84,7 @@ export function Sidebar() {
               {user?.name}
             </p>
             <p className="text-[10px] text-sidebar-foreground/50 truncate">
-              {user?.role === "admin" ? "Administrador" : "Funcionário"}
+              {roleLabel}
             </p>
           </div>
         </div>

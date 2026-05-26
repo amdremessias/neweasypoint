@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
-import { db, attendanceTable, employeesTable } from "@workspace/db";
+import { db, attendanceTable, employeesTable, locationSettingsTable } from "@workspace/db";
 import {
   CreateAttendanceBody,
   GetAttendanceParams,
@@ -37,6 +37,18 @@ function calcLateMinutes(expectedCheckin: string, clockIn: Date): number {
   const clockInTotal = getBRTMinutes(clockIn);
   const diff = clockInTotal - expectedTotal;
   return diff > 0 ? diff : 0;
+}
+
+function getDistanceFromLatLonInMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000; // Earth radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 function calcOvertimeMinutes(expectedCheckout: string, clockOut: Date): number {
@@ -78,6 +90,32 @@ router.post("/attendance/clockin", async (req, res): Promise<void> => {
   if (!employee) {
     res.status(404).json({ error: "Employee not found" });
     return;
+  }
+
+  // Geolocation validation
+  const activeLocations = await db
+    .select()
+    .from(locationSettingsTable)
+    .where(eq(locationSettingsTable.isActive, true));
+
+  if (activeLocations.length > 0 && req.body.latitude && req.body.longitude) {
+    const userLat = Number(req.body.latitude);
+    const userLon = Number(req.body.longitude);
+    let withinAny = false;
+    for (const loc of activeLocations) {
+      const distance = getDistanceFromLatLonInMeters(
+        userLat, userLon,
+        Number(loc.latitude), Number(loc.longitude)
+      );
+      if (distance <= loc.radiusMeters) {
+        withinAny = true;
+        break;
+      }
+    }
+    if (!withinAny) {
+      res.status(403).json({ error: "Localizacao fora do raio permitido para registro de ponto." });
+      return;
+    }
   }
 
   const now = new Date();
@@ -238,6 +276,24 @@ router.post("/attendance/clockout", async (req, res): Promise<void> => {
   }
 
   const overtimeMinutes = calcOvertimeMinutes(employee.expectedCheckout, now);
+
+  // Banco de horas calculation
+  let bancoChange = 0;
+  const workload = employee.workloadMinutes ?? 480;
+  if (totalMinutes > workload) {
+    bancoChange = totalMinutes - workload;
+  } else if (totalMinutes < workload) {
+    bancoChange = -(workload - totalMinutes);
+  }
+
+  if (bancoChange !== 0) {
+    await db
+      .update(employeesTable)
+      .set({
+        bancoDeHorasMinutes: (employee.bancoDeHorasMinutes ?? 0) + bancoChange,
+      })
+      .where(eq(employeesTable.id, employee.id));
+  }
 
   const [updated] = await db
     .update(attendanceTable)

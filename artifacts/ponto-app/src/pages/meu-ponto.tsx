@@ -27,7 +27,7 @@ export default function MeuPontoPage() {
 
   const { data: todayRecords = [], refetch } = useListAttendance(
     { employeeId },
-    { query: { enabled: !!employeeId } }
+    { query: { enabled: !!employeeId, queryKey: ["attendance", employeeId] } }
   );
 
   const todayRecord = todayRecords.find(
@@ -156,7 +156,7 @@ export default function MeuPontoPage() {
               <p className="text-sm text-muted-foreground">
                 Entrada: <strong>{formatTime(todayRecord?.clockIn)}</strong>
                 {(todayRecord?.lateMinutes ?? 0) > 0 && (
-                  <span className="text-amber-600 ml-1">(+{todayRecord.lateMinutes} min de atraso)</span>
+                  <span className="text-amber-600 ml-1">(+{todayRecord!.lateMinutes} min de atraso)</span>
                 )}
               </p>
               <Button onClick={handleLunchOut} disabled={loading} variant="outline" className="gap-2" size="lg">
@@ -238,7 +238,7 @@ export default function MeuPontoPage() {
                 </p>
               )}
               {(todayRecord?.overtimeMinutes ?? 0) > 0 && (
-                <p className="text-xs text-primary">+{todayRecord.overtimeMinutes} min de hora extra</p>
+                <p className="text-xs text-primary">+{todayRecord!.overtimeMinutes} min de hora extra</p>
               )}
             </div>
           )}

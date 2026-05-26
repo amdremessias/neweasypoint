@@ -5,6 +5,8 @@ import attendanceRouter from "./attendance";
 import reportsRouter from "./reports";
 import authRouter from "./auth";
 import usersRouter from "./users";
+import integrationsRouter from "./integrations";
+import payrollRouter from "./payroll";
 import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
@@ -19,5 +21,7 @@ router.use(employeesRouter);
 router.use(attendanceRouter);
 router.use(reportsRouter);
 router.use(usersRouter);
+router.use(integrationsRouter);
+router.use(payrollRouter);
 
 export default router;

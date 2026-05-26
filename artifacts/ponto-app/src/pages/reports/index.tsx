@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGetDepartmentSummary, useGetEmployeeHoursReport, useListEmployees, getGetEmployeeHoursReportQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useToast } from "@/hooks/use-toast";
+import { AlertCircle } from "lucide-react";
 
 const months = [
   { value: "1", label: "Janeiro" }, { value: "2", label: "Fevereiro" },
@@ -225,6 +227,143 @@ export default function ReportsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Late Arrivals Detailed Report */}
+      <LateArrivalsReport />
     </div>
+  );
+}
+
+function LateArrivalsReport() {
+  const { toast } = useToast();
+  const [employees, setEmployees] = useState<{ id: number; name: string }[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [report, setReport] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadEmployees = async () => {
+    try {
+      const res = await fetch("/api/employees", { credentials: "include" });
+      const data = await res.json();
+      setEmployees(Array.isArray(data) ? data.map((e: { id: number; name: string }) => ({ id: e.id, name: e.name })) : []);
+    } catch {
+      toast({ title: "Erro ao carregar funcionarios.", variant: "destructive" });
+    }
+  };
+
+  useEffect(() => {
+    loadEmployees();
+  }, []);
+
+  const fetchReport = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (selectedEmployee) params.set("employeeId", selectedEmployee);
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
+      const res = await fetch(`/api/reports/late-arrivals-detailed?${params.toString()}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Erro ao carregar relatorio.");
+      const data = await res.json();
+      setReport(data);
+    } catch {
+      toast({ title: "Erro ao carregar relatorio de atrasos.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-amber-500" />
+          Relatorio de Atrasos
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
+          <select
+            value={selectedEmployee}
+            onChange={(e) => setSelectedEmployee(e.target.value)}
+            className="h-10 px-3 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          >
+            <option value="">Todos os funcionarios</option>
+            {employees.map((e) => (
+              <option key={e.id} value={e.id}>{e.name}</option>
+            ))}
+          </select>
+          <input
+            type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+            className="h-10 px-3 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
+          <input
+            type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+            className="h-10 px-3 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
+          <button
+            onClick={fetchReport}
+            disabled={loading}
+            className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+          >
+            {loading ? "Carregando..." : "Buscar"}
+          </button>
+        </div>
+
+        {report && (
+          <div className="space-y-4">
+            {report.summary?.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {report.summary.map((s: any) => (
+                  <div key={s.employeeId} className="bg-muted/40 rounded-lg p-4">
+                    <p className="font-medium text-sm">{s.employeeName}</p>
+                    <p className="text-xs text-muted-foreground">{s.department}</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Dias com atraso:</span>
+                        <p className="font-medium">{s.lateDays}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Total atrasado:</span>
+                        <p className="font-medium text-amber-600">{s.totalLateMinutes} min</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {report.records?.length > 0 && (
+              <div className="border rounded-lg overflow-hidden">
+                <div className="grid grid-cols-5 gap-0 text-xs font-medium text-muted-foreground bg-muted/40 px-4 py-2">
+                  <span>Data</span>
+                  <span>Funcionario</span>
+                  <span>Esperado</span>
+                  <span>Chegada</span>
+                  <span>Atraso</span>
+                </div>
+                <div className="divide-y max-h-64 overflow-y-auto">
+                  {report.records.map((r: any, i: number) => (
+                    <div key={i} className="grid grid-cols-5 gap-0 px-4 py-2 text-sm hover:bg-muted/20">
+                      <span className="text-muted-foreground">{r.date}</span>
+                      <span>{r.employeeName}</span>
+                      <span>{r.expectedCheckin}</span>
+                      <span>{r.actualCheckin ? format(parseISO(r.actualCheckin), "HH:mm") : "--"}</span>
+                      <span className="text-amber-600 font-medium">+{r.lateMinutes} min</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {report.records?.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum atraso encontrado no periodo.</p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

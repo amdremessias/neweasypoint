@@ -19,3 +19,16 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   }
   next();
 }
+
+export function requireManager(req: Request, res: Response, next: NextFunction): void {
+  if (!req.session?.userId) {
+    res.status(401).json({ error: "Não autenticado." });
+    return;
+  }
+  const role = req.session.userRole;
+  if (role !== "admin" && role !== "manager") {
+    res.status(403).json({ error: "Acesso negado. Permissão de gestor necessária." });
+    return;
+  }
+  next();
+}

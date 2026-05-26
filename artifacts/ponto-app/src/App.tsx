@@ -15,6 +15,8 @@ import EmployeeDetailPage from "@/pages/employees/detail";
 import AttendancePage from "@/pages/attendance/index";
 import ReportsPage from "@/pages/reports/index";
 import UsersPage from "@/pages/users/index";
+import IntegrationsPage from "@/pages/integrations/index";
+import PayrollPage from "@/pages/payroll/index";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -45,7 +47,7 @@ function AppRoutes() {
     return <MeuPontoPage />;
   }
 
-  // Admin role: full app
+  // Admin/manager role: full app
   return (
     <AppLayout>
       <Switch>
@@ -58,6 +60,8 @@ function AppRoutes() {
         <Route path="/attendance" component={AttendancePage} />
         <Route path="/reports" component={ReportsPage} />
         <Route path="/users" component={UsersPage} />
+        <Route path="/integrations" component={IntegrationsPage} />
+        <Route path="/payroll" component={PayrollPage} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

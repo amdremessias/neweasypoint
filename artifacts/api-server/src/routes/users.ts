@@ -11,7 +11,8 @@ const CreateUserBody = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
-  role: z.enum(["admin", "employee"]).default("employee"),
+  role: z.enum(["admin", "manager", "employee"]).default("employee"),
+  permissions: z.array(z.string()).optional(),
   employeeId: z.number().nullable().optional(),
 });
 
@@ -38,7 +39,7 @@ router.post("/users", requireAdmin, async (req, res): Promise<void> => {
     return;
   }
 
-  const { name, email, password, role, employeeId } = parsed.data;
+  const { name, email, password, role, permissions, employeeId } = parsed.data;
 
   const [existing] = await db
     .select({ id: usersTable.id })
@@ -59,6 +60,7 @@ router.post("/users", requireAdmin, async (req, res): Promise<void> => {
       email: email.toLowerCase().trim(),
       passwordHash,
       role,
+      permissions: JSON.stringify(permissions ?? []),
       employeeId: employeeId ?? null,
     })
     .returning({
@@ -66,10 +68,41 @@ router.post("/users", requireAdmin, async (req, res): Promise<void> => {
       name: usersTable.name,
       email: usersTable.email,
       role: usersTable.role,
+      permissions: usersTable.permissions,
       employeeId: usersTable.employeeId,
     });
 
   res.status(201).json(user);
+});
+
+router.put("/users/:id/password", requireAdmin, async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "ID invalido." });
+    return;
+  }
+
+  const schema = z.object({ password: z.string().min(6) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(parsed.data.password, 10);
+
+  const [updated] = await db
+    .update(usersTable)
+    .set({ passwordHash })
+    .where(eq(usersTable.id, id))
+    .returning({ id: usersTable.id });
+
+  if (!updated) {
+    res.status(404).json({ error: "Usuario nao encontrado." });
+    return;
+  }
+
+  res.json({ ok: true });
 });
 
 router.delete("/users/:id", requireAdmin, async (req, res): Promise<void> => {

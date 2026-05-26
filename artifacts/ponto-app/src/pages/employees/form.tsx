@@ -24,6 +24,8 @@ const schema = z.object({
   expectedLunchIn: z.string().min(1, "Horário de retorno do almoço é obrigatório"),
   expectedCheckout: z.string().min(1, "Horário de saída é obrigatório"),
   status: z.enum(["active", "inactive"]),
+  salary: z.string().optional(),
+  workloadMinutes: z.number().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -41,7 +43,7 @@ export default function EmployeeFormPage() {
 
   const [createAccess, setCreateAccess] = useState(false);
   const [accessPassword, setAccessPassword] = useState("");
-  const [accessRole, setAccessRole] = useState<"admin" | "employee">("employee");
+  const [accessRole, setAccessRole] = useState<"admin" | "manager" | "employee">("employee");
   const [showPassword, setShowPassword] = useState(false);
   const [accessError, setAccessError] = useState("");
 
@@ -61,6 +63,8 @@ export default function EmployeeFormPage() {
       expectedLunchIn: "13:00",
       expectedCheckout: "18:00",
       status: "active",
+      salary: "",
+      workloadMinutes: 480,
     },
   });
 
@@ -76,6 +80,8 @@ export default function EmployeeFormPage() {
         expectedLunchIn: (employee as any).expectedLunchIn ?? "13:00",
         expectedCheckout: employee.expectedCheckout,
         status: employee.status as "active" | "inactive",
+        salary: String((employee as any).salary ?? ""),
+        workloadMinutes: (employee as any).workloadMinutes ?? 480,
       });
     }
   }, [employee, reset]);
@@ -211,6 +217,17 @@ export default function EmployeeFormPage() {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Salário</Label>
+                <Input {...register("salary")} type="number" step="0.01" placeholder="Ex: 3500.00" />
+              </div>
+              <div className="space-y-2">
+                <Label>Jornada (minutos)</Label>
+                <Input {...register("workloadMinutes", { valueAsNumber: true })} type="number" placeholder="Ex: 480" />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>Status</Label>
               <Select value={watchStatus} onValueChange={v => setValue("status", v as "active" | "inactive")}>
@@ -261,12 +278,13 @@ export default function EmployeeFormPage() {
                     </div>
                     <div className="space-y-2">
                       <Label>Permissão</Label>
-                      <Select value={accessRole} onValueChange={v => setAccessRole(v as "admin" | "employee")}>
+                      <Select value={accessRole} onValueChange={v => setAccessRole(v as "admin" | "manager" | "employee")}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="employee">Funcionário</SelectItem>
+                          <SelectItem value="manager">Gestor</SelectItem>
                           <SelectItem value="admin">Administrador</SelectItem>
                         </SelectContent>
                       </Select>

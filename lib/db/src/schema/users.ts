@@ -6,7 +6,8 @@ export const usersTable = pgTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name").notNull(),
-  role: text("role").notNull().default("employee"), // "admin" | "employee"
+  role: text("role").notNull().default("employee"), // "admin" | "manager" | "employee"
+  permissions: text("permissions").default("{}"), // JSON array of permission strings
   employeeId: integer("employee_id").references(() => employeesTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

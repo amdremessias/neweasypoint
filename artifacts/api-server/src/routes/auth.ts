@@ -47,6 +47,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     name: user.name,
     email: user.email,
     role: user.role,
+    permissions: user.permissions ? JSON.parse(user.permissions) : [],
     employeeId: user.employeeId ?? null,
   });
 });
@@ -69,6 +70,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       name: usersTable.name,
       email: usersTable.email,
       role: usersTable.role,
+      permissions: usersTable.permissions,
       employeeId: usersTable.employeeId,
     })
     .from(usersTable)
@@ -82,7 +84,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
 
   // If employee role, also fetch employee info
   let employee = null;
-  if (user.role === "employee" && user.employeeId) {
+  if ((user.role === "employee" || user.role === "manager") && user.employeeId) {
     const [emp] = await db
       .select()
       .from(employeesTable)
@@ -95,6 +97,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     name: user.name,
     email: user.email,
     role: user.role,
+    permissions: user.permissions ? JSON.parse(user.permissions) : [],
     employeeId: user.employeeId,
     employee,
   });

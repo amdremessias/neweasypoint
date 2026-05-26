@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowLeft, Pencil, User, Clock, TrendingUp, Calendar } from "lucide-react";
+import { ArrowLeft, Pencil, User, Clock, TrendingUp, Calendar, Wallet, Hourglass } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function EmployeeDetailPage() {
@@ -89,6 +89,20 @@ export default function EmployeeDetailPage() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Horário</p>
                 <p className="text-sm font-medium">{employee.expectedCheckin} – {employee.expectedCheckout}</p>
               </div>
+              {(employee as any).salary && Number((employee as any).salary) > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Salário</p>
+                  <p className="text-sm font-medium">R$ {Number((employee as any).salary).toFixed(2)}</p>
+                </div>
+              )}
+              {(employee as any).bancoDeHorasMinutes != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Banco de Horas</p>
+                  <p className={`text-sm font-medium ${(employee as any).bancoDeHorasMinutes >= 0 ? "text-green-600" : "text-red-500"}`}>
+                    {Math.round((employee as any).bancoDeHorasMinutes / 6) / 10}h
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
