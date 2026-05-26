@@ -43,7 +43,7 @@ export default function MeuPontoPage() {
     return `${String(brtHours).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
   };
 
-  const apiAction = async (url: string, successMsg: string, successDesc: string, errorMsg: string) => {
+  const apiAction = async (url: string, successMsg: string, successDesc: string, errorMsg: string, body?: Record<string, unknown>) => {
     if (!employeeId) return;
     setLoading(true);
     try {
@@ -51,7 +51,7 @@ export default function MeuPontoPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ employeeId }),
+        body: JSON.stringify(body ?? { employeeId }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -70,7 +70,27 @@ export default function MeuPontoPage() {
     }
   };
 
-  const handleClockIn = () => apiAction("/api/attendance/clockin", "Entrada registrada!", "Bom trabalho!", "Não foi possível registrar entrada.");
+  const handleClockIn = async () => {
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+      });
+      await apiAction(
+        "/api/attendance/clockin",
+        "Entrada registrada!",
+        "Bom trabalho!",
+        "Não foi possível registrar entrada.",
+        { employeeId, latitude: pos.coords.latitude, longitude: pos.coords.longitude }
+      );
+    } catch {
+      await apiAction(
+        "/api/attendance/clockin",
+        "Entrada registrada!",
+        "Bom trabalho!",
+        "Não foi possível registrar entrada: habilite a localização ou entre em contato com o administrador."
+      );
+    }
+  };
   const handleLunchOut = () => apiAction("/api/attendance/lunch-out", "Saída para almoço registrada!", "Bom almoço!", "Não foi possível registrar saída para almoço.");
   const handleLunchIn = () => apiAction("/api/attendance/lunch-in", "Retorno do almoço registrado!", "Boa tarde!", "Não foi possível registrar retorno do almoço.");
   const handleClockOut = () => apiAction("/api/attendance/clockout", "Saída registrada!", "Até amanhã!", "Não foi possível registrar saída.");
