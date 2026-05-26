@@ -98,6 +98,9 @@ router.get("/payroll/:employeeId/:month/:year", requireManager, async (req, res)
   const salary = Number(employee.salary ?? 0);
   const workloadMinutes = employee.workloadMinutes ?? 480;
 
+  const safeWorkDays = Math.max(1, workDays);
+  const safePresentDays = Math.min(presentDays, safeWorkDays);
+
   // Base salary: proportional to days worked if partial month
   const dailyMinutes = workloadMinutes;
   const expectedTotalMinutes = workDays * dailyMinutes;
@@ -109,7 +112,7 @@ router.get("/payroll/:employeeId/:month/:year", requireManager, async (req, res)
   const overtimePay = Math.round(overtimeHours * hourlyRate * 1.5 * 100) / 100;
 
   // Deductions: proportional for absent days (rough estimate)
-  const dailySalary = salary / workDays;
+  const dailySalary = salary / safeWorkDays;
   const deductions = Math.round(absentDays * dailySalary * 100) / 100;
 
   const netSalary = Math.round((baseSalary + overtimePay - deductions) * 100) / 100;
