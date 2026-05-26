@@ -92,15 +92,19 @@ router.post("/attendance/clockin", async (req, res): Promise<void> => {
     return;
   }
 
-  // Geolocation validation
+  // Geolocation validation (required when active locations exist)
   const activeLocations = await db
     .select()
     .from(locationSettingsTable)
     .where(eq(locationSettingsTable.isActive, true));
 
-  if (activeLocations.length > 0 && req.body.latitude && req.body.longitude) {
-    const userLat = Number(req.body.latitude);
-    const userLon = Number(req.body.longitude);
+  if (activeLocations.length > 0) {
+    const userLat = req.body.latitude != null ? Number(req.body.latitude) : null;
+    const userLon = req.body.longitude != null ? Number(req.body.longitude) : null;
+    if (userLat == null || isNaN(userLat) || userLon == null || isNaN(userLon)) {
+      res.status(403).json({ error: "Localizacao obrigatoria para registro de ponto. Envie latitude e longitude." });
+      return;
+    }
     let withinAny = false;
     for (const loc of activeLocations) {
       const distance = getDistanceFromLatLonInMeters(
